@@ -16,26 +16,28 @@ function GoogleAnalytics(app) {
   this.appVersion = "unknow";
   this.log = true // enable console.log
 
-  //console.log(this.systemInfo);
+  // console.log(this.systemInfo);
 
   var cidKey = '_ga_cid'; // 存用户身份(UUID)
 
-  var cid = wx.getStorageSync(cidKey) || false;
+  var cid = uni.getStorageSync(cidKey) || false;
   if (!cid) {
-    cid = getUUID();
-    wx.setStorageSync(cidKey, cid);
+      cid = getUUID();
+      uni.setStorageSync(cidKey, cid);
   }
   this.cid = cid;
   this.userAgent = buildUserAgentFromSystemInfo(this.systemInfo);
   var pixelRatio = this.systemInfo.pixelRatio;
   this.sr = param_screen_fix(
-    Math.round(this.systemInfo.windowWidth * pixelRatio),
-    Math.round(this.systemInfo.windowHeight * pixelRatio),
-    this.systemInfo
+      Math.round(this.systemInfo.windowWidth * pixelRatio),
+      Math.round(this.systemInfo.windowHeight * pixelRatio),
+      this.systemInfo
   );
-  this.vp = [this.systemInfo.windowWidth, this.systemInfo.windowHeight].map(function (x) { return x; /*Math.floor(x)*/ }).join('x');
-
+  this.vp = [this.systemInfo.windowWidth, this.systemInfo.windowHeight].map(function (x) {
+      return x; /*Math.floor(x)*/
+  }).join('x');
 }
+
 GoogleAnalytics.prototype.setAppName = function (appName) {
   this.appName = appName;
   return this;
@@ -68,14 +70,15 @@ function Tracker(ga, tid) {
   this.ga = ga;
   this.trackerServer = "https://www.google-analytics.com";
   this.hit = {
-    tid: tid || "", // tracking Id
-    cd: "" // screenName
+      tid: tid || "", // tracking Id
+      cd: "" // screenName
   };
   this.next_hit = {}; // 下一个hit需要设置的参数
 
   this.sending = false; //数据发送状态
   this.send_queue = []; //发送队列
 }
+
 // 设置自定义的跟踪服务器地址，默认是 https://www.google-analytics.com
 Tracker.prototype.setTrackerServer = function (server) {
   this.trackerServer = server;
@@ -110,7 +113,7 @@ Tracker.prototype.setCampaignParamsOnNextHit = function (uri) {
   var hit = parseUtmParams(uri);
   this.next_hit = {}; //clear previous one
   for (var k in hit) {
-    this.next_hit[k] = hit[k];
+      this.next_hit[k] = hit[k];
   }
   return this;
 }
@@ -154,35 +157,35 @@ Tracker.prototype.send_queue_push = function (ga, hit) {
 
   // 默认基础字段
   var data = {
-    v: 1,
-    //tid: t.hit.tid,
-    cid: ga.cid,
-    ds: "app",
-    ul: ga.systemInfo.language,
-    de: "UTF-8",
-    sd: "24-bit",
-    je: 0,
-    //cd: t.hit.cd,//screenName
-    an: ga.appName,
-    av: ga.appVersion,
-    sr: ga.sr,
-    vp: ga.vp,
-    ua: ga.userAgent
+      v: 1,
+      //tid: t.hit.tid,
+      cid: ga.cid,
+      ds: "app",
+      ul: ga.systemInfo.language,
+      de: "UTF-8",
+      sd: "24-bit",
+      je: 0,
+      //cd: t.hit.cd,//screenName
+      an: ga.appName,
+      av: ga.appVersion,
+      sr: ga.sr,
+      vp: ga.vp,
+      ua: ga.userAgent
   };
 
   // 合并Tracker上的参数
   for (var k in t.hit) {
-    data[k] = t.hit[k];
+      data[k] = t.hit[k];
   }
   // Tracker上有预设的单次发送数据
   for (var k in t.next_hit) {
-    data[k] = t.next_hit[k];
+      data[k] = t.next_hit[k];
   }
   t.next_hit = {}; // clear
 
   // 合并Builder上的参数
   for (var k in hit) {
-    data[k] = hit[k];
+      data[k] = hit[k];
   }
 
   this.ga.log && console.log(["ga.queue.push", data]);
@@ -193,92 +196,97 @@ Tracker.prototype.send_queue_push = function (ga, hit) {
 }
 Tracker.prototype._do_send = function () {
   if (this.sending) {
-    return;
+      return;
   }
 
   if (this.send_queue.length <= 0) {
-    this.sending = false;
-    return;
+      this.sending = false;
+      return;
   }
 
   this.sending = true;
   var that = this;
 
   var payloadEncoder = function (data) {
-    var s = [];
-    for (var k in data) {
-      s.push([encodeURIComponent(k), encodeURIComponent(data[k])].join("="));
-    }
-    return s.join("&");
+      var s = [];
+      for (var k in data) {
+          s.push([encodeURIComponent(k), encodeURIComponent(data[k])].join("="));
+      }
+      return s.join("&");
   };
 
   var payloads = [];
   while (this.send_queue.length > 0) {
-    var sd = this.send_queue[0];
-    var data = sd[0];
-    data.qt = (new Date()).getTime() - sd[1].getTime(); // 数据发生和发送的时间差，单位毫秒
-    data.z = Math.floor(Math.random() * 2147483648);
+      var sd = this.send_queue[0];
+      var data = sd[0];
+      data.qt = (new Date()).getTime() - sd[1].getTime(); // 数据发生和发送的时间差，单位毫秒
+      data.z = Math.floor(Math.random() * 2147483648);
 
-    var payload = payloadEncoder(data);
-    var old_len = payloads.map(function (a) { return a.length; }).reduce(function (a, b) { return a + b; }, 0);
-    var add_len = payload.length;
+      var payload = payloadEncoder(data);
+      var old_len = payloads.map(function (a) {
+          return a.length;
+      }).reduce(function (a, b) {
+          return a + b;
+      }, 0);
+      var add_len = payload.length;
 
-    // 批量上报有限制
-    // 1. 单条8K
-    // 2. 总共16K
-    // 3. 最多20条
-    if (old_len + add_len > 16 * 1024 || add_len > 8 * 1024 || payloads.length >= 20) {
-      // 但是要保证至少有单次上报的数据
-      if (payloads.length > 0) {
-        break;
+      // 批量上报有限制
+      // 1. 单条8K
+      // 2. 总共16K
+      // 3. 最多20条
+      if (old_len + add_len > 16 * 1024 || add_len > 8 * 1024 || payloads.length >= 20) {
+          // 但是要保证至少有单次上报的数据
+          if (payloads.length > 0) {
+              break;
+          }
       }
-    }
 
-    payloads.push(payload);
-    this.send_queue.shift();
+      payloads.push(payload);
+      this.send_queue.shift();
 
-    this.ga.log && console.log(["ga.queue.presend[" + (payloads.length - 1) + "]", data]);
+      this.ga.log && console.log(["ga.queue.presend[" + (payloads.length - 1) + "]", data]);
   }
 
   var payloadData = payloads.join("\r\n");
 
   var apiUrl = this.trackerServer + '/collect';
   if (payloads.length > 1) {
-    this.ga.log && console.log(["ga.queue.send.batch", payloadData]);
-    //使用批量上报接口
-    apiUrl = this.trackerServer + '/batch';
+      this.ga.log && console.log(["ga.queue.send.batch", payloadData]);
+      //使用批量上报接口
+      apiUrl = this.trackerServer + '/batch';
   } else {
-    this.ga.log && console.log(["ga.queue.send.collect", payloadData]);
+      this.ga.log && console.log(["ga.queue.send.collect", payloadData]);
   }
-  wx.request({
-    url: apiUrl,
-    data: payloadData,
-    method: 'POST',
-    header: {
-      "content-type": "text/plain" //"application/x-www-form-urlencoded"
-    },
-    success: function (res) {
-      // success
-      that.ga.log && console.log(["ga:success", res]);
-    },
-    fail: function (res) {
-      // fail
-      that.ga.log && console.log(["ga:failed", res])
-    },
-    complete: function () {
-      // complete
-      that.sending = false;
-      setTimeout(function () { that._do_send(); }, 0);
-    }
+  uni.request({
+      url: apiUrl,
+      data: payloadData,
+      method: 'POST',
+      header: {
+          "content-type": "text/plain" //"application/x-www-form-urlencoded"
+      },
+      success: function (res) {
+          // success
+          that.ga.log && console.log(["ga:success", res]);
+      },
+      fail: function (res) {
+          // fail
+          that.ga.log && console.log(["ga:failed", res])
+      },
+      complete: function () {
+          // complete
+          that.sending = false;
+          setTimeout(function () {
+              that._do_send();
+          }, 0);
+      },
   });
 }
-
 
 // HitBuilder [基础类]
 function HitBuilder() {
   this.hit = {
-    t: "screenview", // default HitType
-    ni: 0 // [nonInteraction] default: 0
+      t: "screenview", // default HitType
+      ni: 0 // [nonInteraction] default: 0
   };
   this.custom_dimensions = [];
   this.custom_metrics = [];
@@ -299,7 +307,7 @@ HitBuilder.prototype.set = function (paramName, paramValue) {
 // @param Map<String,String> params
 HitBuilder.prototype.setAll = function (params) {
   for (var k in params) {
-    this.set(k, params[k]);
+      this.set(k, params[k]);
   }
   return this;
 }
@@ -308,17 +316,17 @@ HitBuilder.prototype.setAll = function (params) {
 // @param String impressionList
 HitBuilder.prototype.addImpression = function (product, impressionList) {
   if (!this.impression_product_list[impressionList]) {
-    this.impression_product_list[impressionList] = [this.next_impression_index, 1];
-    // 新的展示列表名字 il<impIndex>nm
-    this.set("il" + this.next_impression_index + "nm", impressionList);
-    this.next_impression_index++;
+      this.impression_product_list[impressionList] = [this.next_impression_index, 1];
+      // 新的展示列表名字 il<impIndex>nm
+      this.set("il" + this.next_impression_index + "nm", impressionList);
+      this.next_impression_index++;
   }
   var impIndex = this.impression_product_list[impressionList][0];
   var prdIndex = this.impression_product_list[impressionList][1];
 
   for (var k in product.hit) {
-    // il<impIndex>pi<prdIndex>XX
-    this.set("il" + impIndex + "pi" + prdIndex + k, product.hit[k]);
+      // il<impIndex>pi<prdIndex>XX
+      this.set("il" + impIndex + "pi" + prdIndex + k, product.hit[k]);
   }
 
   // incr prdIndex
@@ -331,8 +339,8 @@ HitBuilder.prototype.addProduct = function (product) {
   var prdIndex = this.next_product_index;
 
   for (var k in product.hit) {
-    // pr<prdIndex>XX
-    this.set("pr" + prdIndex + k, product.hit[k]);
+      // pr<prdIndex>XX
+      this.set("pr" + prdIndex + k, product.hit[k]);
   }
 
   this.next_product_index++;
@@ -343,8 +351,8 @@ HitBuilder.prototype.addPromotion = function (promotion) {
   var promIndex = this.next_promotion_index;
 
   for (var k in promotion.hit) {
-    // promo<promIndex>XX
-    this.set("promo" + promIndex + k, promotion.hit[k]);
+      // promo<promIndex>XX
+      this.set("promo" + promIndex + k, promotion.hit[k]);
   }
 
   this.next_promotion_index++;
@@ -353,7 +361,7 @@ HitBuilder.prototype.addPromotion = function (promotion) {
 // @param ProductAction
 HitBuilder.prototype.setProductAction = function (action) {
   for (var k in action.hit) {
-    this.set(k, action.hit[k]);
+      this.set(k, action.hit[k]);
   }
   return this;
 }
@@ -409,31 +417,33 @@ HitBuilder.prototype.build = function () {
   var del_keys = []; // 需要删除的无效字段
 
   if (this.hit.ni == 0) {
-    del_keys.push('ni');
+      del_keys.push('ni');
   }
 
   // 清理旧的cd<index> ,cm<index>
   for (var k in this.hit) {
-    if (k.match(/^(cd|cm)\d+$/)) {
-      del_keys.push(k);
-    }
+      if (k.match(/^(cd|cm)\d+$/)) {
+          del_keys.push(k);
+      }
   }
 
   // 删除无效字段
-  del_keys.map(function (k) { delete that.hit[k] });
+  del_keys.map(function (k) {
+      delete that.hit[k]
+  });
 
   // 处理自定义维度和指标
   var cd_arr = this.custom_dimensions;
   var cm_arr = this.custom_metrics;
 
   for (i = 0; i < cd_arr.length; i++) {
-    var cd = cd_arr[i];
-    this.hit["cd" + cd[0]] = cd[1];
+      var cd = cd_arr[i];
+      this.hit["cd" + cd[0]] = cd[1];
   }
 
   for (i = 0; i < cm_arr.length; i++) {
-    var cm = cm_arr[i];
-    this.hit["cm" + cm[0]] = cm[1];
+      var cm = cm_arr[i];
+      this.hit["cm" + cm[0]] = cm[1];
   }
 
   return this.hit;
@@ -442,7 +452,7 @@ HitBuilder.prototype.build = function () {
 // 用来删除一些无效的可选参数
 function hit_delete_if(hitbuilder, paramName, condValue) {
   if (hitbuilder.hit[paramName] == condValue) {
-    delete hitbuilder.hit[paramName];
+      delete hitbuilder.hit[paramName];
   }
 }
 
@@ -451,6 +461,7 @@ function ScreenViewBuilder() {
   HitBuilder.call(this);
   this.setHitType("screenview");
 }
+
 ScreenViewBuilder.prototype = Object.create(HitBuilder.prototype);
 ScreenViewBuilder.prototype.constructor = ScreenViewBuilder;
 
@@ -459,12 +470,13 @@ function EventBuilder() {
   HitBuilder.call(this);
   this.setHitType("event");
   this.setAll({
-    ec: "", // category
-    ea: "", // action
-    el: "", // [label]
-    ev: 0 // [value]
+      ec: "", // category
+      ea: "", // action
+      el: "", // [label]
+      ev: 0 // [value]
   });
 }
+
 EventBuilder.prototype = Object.create(HitBuilder.prototype);
 EventBuilder.prototype.constructor = EventBuilder;
 
@@ -494,11 +506,12 @@ function SocialBuilder() {
   HitBuilder.call(this);
   this.setHitType("social");
   this.setAll({
-    sn: "", // network
-    sa: "", // action
-    st: "" // [target]
+      sn: "", // network
+      sa: "", // action
+      st: "" // [target]
   });
 }
+
 SocialBuilder.prototype = Object.create(HitBuilder.prototype);
 SocialBuilder.prototype.constructor = SocialBuilder;
 SocialBuilder.prototype.setNetwork = function (network) {
@@ -515,15 +528,17 @@ SocialBuilder.prototype.build = function () {
 
   return HitBuilder.prototype.build.apply(this, arguments);
 }
+
 // Exception
 function ExceptionBuilder() {
   HitBuilder.call(this);
   this.setHitType("exception");
   this.setAll({
-    exd: "", // description
-    exf: 1 // is_fatal, default:1
+      exd: "", // description
+      exf: 1 // is_fatal, default:1
   });
 }
+
 ExceptionBuilder.prototype = Object.create(HitBuilder.prototype);
 ExceptionBuilder.prototype.constructor = ExceptionBuilder;
 ExceptionBuilder.prototype.setDescription = function (description) {
@@ -539,12 +554,13 @@ function TimingBuilder() {
   HitBuilder.call(this);
   this.setHitType("timing");
   this.setAll({
-    utc: "", // category
-    utv: "", // variable
-    utt: 0, // value
-    utl: "" // [label]
+      utc: "", // category
+      utv: "", // variable
+      utt: 0, // value
+      utl: "" // [label]
   });
 }
+
 TimingBuilder.prototype = Object.create(HitBuilder.prototype);
 TimingBuilder.prototype.constructor = TimingBuilder;
 TimingBuilder.prototype.setCategory = function (category) {
@@ -571,6 +587,7 @@ TimingBuilder.prototype.build = function () {
 function Product() {
   this.hit = {};
 }
+
 Product.prototype.setBrand = function (brand) {
   this.hit["br"] = brand;
   return this;
@@ -633,6 +650,7 @@ Product.prototype.setVariant = function (variant) {
 function Promotion() {
   this.hit = {};
 }
+
 Promotion.ACTION_CLICK = "click";
 Promotion.ACTION_VIEW = "view";
 // @param String
@@ -659,9 +677,10 @@ Promotion.prototype.setPosition = function (positionName) {
 // 产品操作 ProductAction
 function ProductAction(action) {
   this.hit = {
-    pa: action // action : ACTION_XXXX
+      pa: action, // action : ACTION_XXXX
   };
 }
+
 ProductAction.ACTION_ADD = "add";
 ProductAction.ACTION_CHECKOUT = "checkout";
 ProductAction.ACTION_CHECKOUT_OPTION = "checkout_option";
@@ -729,17 +748,18 @@ ProductAction.prototype.setTransactionTax = function (tax) {
 function CampaignParams() {
   this.params = {};
   this.params_map = {
-    "utm_source": "cs",
-    "utm_medium": "cm",
-    "utm_term": "ck",
-    "utm_content": "cc",
-    "utm_campaign": "cn",
-    "gclid": "gclid"
+      "utm_source": "cs",
+      "utm_medium": "cm",
+      "utm_term": "ck",
+      "utm_content": "cc",
+      "utm_campaign": "cn",
+      "gclid": "gclid"
   };
 }
+
 CampaignParams.prototype.set = function (paramName, paramValue) {
   if (paramName in this.params_map) {
-    this.params[paramName] = paramValue;
+      this.params[paramName] = paramValue;
   }
   return this;
 }
@@ -747,7 +767,7 @@ CampaignParams.prototype.set = function (paramName, paramValue) {
 CampaignParams.prototype.toUrl = function () {
   var kv = [];
   for (var k in this.params) {
-    kv.push([encodeURIComponent(k), encodeURIComponent(this.params[k])].join('='));
+      kv.push([encodeURIComponent(k), encodeURIComponent(this.params[k])].join('='));
   }
 
   return 'https://example.com?' + kv.join('&');
@@ -764,13 +784,13 @@ CampaignParams.parseFromPageOptions = function (options, map) {
   var kv = [];
 
   for (var k in options) {
-    var v = options[k];
-    if (k in map) {
-      k = map[k];
-    }
-    if (k.match(/^utm_/) || k == "gclid") {
-      cp.set(k, v);
-    }
+      var v = options[k];
+      if (k in map) {
+          k = map[k];
+      }
+      if (k.match(/^utm_/) || k == "gclid") {
+          cp.set(k, v);
+      }
   }
   //console.log(cp);
 
@@ -780,84 +800,83 @@ CampaignParams.parseFromPageOptions = function (options, map) {
 // @param int scene
 CampaignParams.buildFromWeappScene = function (scene) {
   var scenemap = {
-    1001: "发现栏小程序主入口",
-    1005: "顶部搜索框的搜索结果页",
-    1006: "发现栏小程序主入口搜索框的搜索结果页",
-    1007: "单人聊天会话中的小程序消息卡片",
-    1008: "群聊会话中的小程序消息卡片",
-    1011: "扫描二维码",
-    1012: "长按图片识别二维码",
-    1013: "手机相册选取二维码",
-    1014: "小程序模版消息",
-    1017: "前往体验版的入口页",
-    1019: "微信钱包",
-    1020: "公众号profile页相关小程序列表",
-    1022: "聊天顶部置顶小程序入口",
-    1023: "安卓系统桌面图标",
-    1024: "小程序profile页",
-    1025: "扫描一维码",
-    1026: "附近小程序列表",
-    1027: "顶部搜索框搜索结果页“使用过的小程序”列表",
-    1028: "我的卡包",
-    1029: "卡券详情页",
-    1030: "自动化测试下打开小程序",
-    1031: "长按图片识别一维码",
-    1032: "手机相册选取一维码",
-    1034: "微信支付完成页",
-    1035: "公众号自定义菜单",
-    1036: "App 分享消息卡片",
-    1037: "小程序打开小程序",
-    1038: "从另一个小程序返回",
-    1039: "摇电视",
-    1042: "添加好友搜索框的搜索结果页",
-    1043: "公众号模板消息",
-    1044: "带shareTicket的小程序消息卡片",
-    1045: "朋友圈广告",
-    1046: "朋友圈广告详情页",
-    1047: "扫描小程序码",
-    1048: "长按图片识别小程序码",
-    1049: "手机相册选取小程序码",
-    1052: "卡券的适用门店列表",
-    1053: "搜一搜的结果页",
-    1054: "顶部搜索框小程序快捷入口",
-    1056: "音乐播放器菜单",
-    1057: "钱包中的银行卡详情页",
-    1058: "公众号文章",
-    1059: "体验版小程序绑定邀请页",
-    1064: "微信连Wifi状态栏",
-    1067: "公众号文章广告",
-    1068: "附近小程序列表广告",
-    1069: "移动应用",
-    1071: "钱包中的银行卡列表页",
-    1072: "二维码收款页面",
-    1073: "客服消息列表下发的小程序消息卡片",
-    1074: "公众号会话下发的小程序消息卡片",
-    1077: "摇周边",
-    1078: "连Wi-Fi成功页",
-    1079: "微信游戏中心",
-    1081: "客服消息下发的文字链",
-    1082: "公众号会话下发的文字链",
-    1084: "朋友圈广告原生页",
-    1089: "微信聊天主界面下拉",
-    1090: "长按小程序右上角菜单唤出最近使用历史",
-    1091: "公众号文章商品卡片",
-    1092: "城市服务入口",
-    1095: "小程序广告组件",
-    1096: "聊天记录",
-    1097: "微信支付签约页",
-    1099: "页面内嵌插件",
-    1102: "公众号 profile 页服务预览",
+      1001: "发现栏小程序主入口",
+      1005: "顶部搜索框的搜索结果页",
+      1006: "发现栏小程序主入口搜索框的搜索结果页",
+      1007: "单人聊天会话中的小程序消息卡片",
+      1008: "群聊会话中的小程序消息卡片",
+      1011: "扫描二维码",
+      1012: "长按图片识别二维码",
+      1013: "手机相册选取二维码",
+      1014: "小程序模版消息",
+      1017: "前往体验版的入口页",
+      1019: "微信钱包",
+      1020: "公众号profile页相关小程序列表",
+      1022: "聊天顶部置顶小程序入口",
+      1023: "安卓系统桌面图标",
+      1024: "小程序profile页",
+      1025: "扫描一维码",
+      1026: "附近小程序列表",
+      1027: "顶部搜索框搜索结果页“使用过的小程序”列表",
+      1028: "我的卡包",
+      1029: "卡券详情页",
+      1030: "自动化测试下打开小程序",
+      1031: "长按图片识别一维码",
+      1032: "手机相册选取一维码",
+      1034: "微信支付完成页",
+      1035: "公众号自定义菜单",
+      1036: "App 分享消息卡片",
+      1037: "小程序打开小程序",
+      1038: "从另一个小程序返回",
+      1039: "摇电视",
+      1042: "添加好友搜索框的搜索结果页",
+      1043: "公众号模板消息",
+      1044: "带shareTicket的小程序消息卡片",
+      1045: "朋友圈广告",
+      1046: "朋友圈广告详情页",
+      1047: "扫描小程序码",
+      1048: "长按图片识别小程序码",
+      1049: "手机相册选取小程序码",
+      1052: "卡券的适用门店列表",
+      1053: "搜一搜的结果页",
+      1054: "顶部搜索框小程序快捷入口",
+      1056: "音乐播放器菜单",
+      1057: "钱包中的银行卡详情页",
+      1058: "公众号文章",
+      1059: "体验版小程序绑定邀请页",
+      1064: "微信连Wifi状态栏",
+      1067: "公众号文章广告",
+      1068: "附近小程序列表广告",
+      1069: "移动应用",
+      1071: "钱包中的银行卡列表页",
+      1072: "二维码收款页面",
+      1073: "客服消息列表下发的小程序消息卡片",
+      1074: "公众号会话下发的小程序消息卡片",
+      1077: "摇周边",
+      1078: "连Wi-Fi成功页",
+      1079: "微信游戏中心",
+      1081: "客服消息下发的文字链",
+      1082: "公众号会话下发的文字链",
+      1084: "朋友圈广告原生页",
+      1089: "微信聊天主界面下拉",
+      1090: "长按小程序右上角菜单唤出最近使用历史",
+      1091: "公众号文章商品卡片",
+      1092: "城市服务入口",
+      1095: "小程序广告组件",
+      1096: "聊天记录",
+      1097: "微信支付签约页",
+      1099: "页面内嵌插件",
+      1102: "公众号 profile 页服务预览",
   };
 
   var cp = new CampaignParams();
 
-
   if (scene in scenemap) {
-    cp.set('utm_source', '小程序场景');
-    cp.set('utm_medium', scene + ':' + scenemap[scene]);
+      cp.set('utm_source', '小程序场景');
+      cp.set('utm_medium', scene + ':' + scenemap[scene]);
   } else if (scene) {
-    cp.set('utm_source', '小程序场景');
-    cp.set('utm_medium', scene + ':');
+      cp.set('utm_source', '小程序场景');
+      cp.set('utm_medium', scene + ':');
   }
   //console.log(cp);
 
@@ -870,23 +889,22 @@ CampaignParams.parseFromUrl = function (url) {
   var map = cp.params_map;
 
   queryString.split('&').map(function (a) {
-    var kv = a.split('=');
-    var k = decodeURIComponent(kv[0]);
-    if (kv.length != 2 || kv[1] === "" || !map[k]) return;
-    var v = decodeURIComponent(kv[1]);
-    cp.set(k, v);
+      var kv = a.split('=');
+      var k = decodeURIComponent(kv[0]);
+      if (kv.length != 2 || kv[1] === "" || !map[k]) return;
+      var v = decodeURIComponent(kv[1]);
+      cp.set(k, v);
   });
 
   return cp;
 }
 
-
 // 一些工具函数
 function getUUID() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-    var r = Math.random() * 16 | 0,
-      v = c == 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
+      var r = Math.random() * 16 | 0,
+          v = c == 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
   });
 }
 
@@ -895,15 +913,19 @@ function buildUserAgentFromSystemInfo(si) {
   var isIPad = !isAndroid && si.model.toLowerCase().indexOf('iphone') == -1;
   //console.log([isAndroid, isIPad]);
   if (isAndroid) {
-    return "Mozilla/5.0 (Linux; U; " + si.system + "; " + si.model + " Build/000000) AppleWebKit/537.36 (KHTML, like Gecko)Version/4.0 Chrome/49.0.0.0 Mobile Safari/537.36 MicroMessenger/" + si.version;
+      return "Mozilla/5.0 (Linux; U; " + si.system + "; " + si.model + " Build/000000) AppleWebKit/537.36 (KHTML, like Gecko)Version/4.0 Chrome/49.0.0.0 Mobile Safari/537.36 MicroMessenger/" + si.version;
   } else if (!isIPad) {
-    // iOS
-    var v = si.system.replace(/^.*?([0-9.]+).*?$/, function (x, y) { return y; }).replace(/\./g, '_');
-    return "Mozilla/5.0 (iPhone; CPU iPhone OS " + v + " like Mac OS X) AppleWebKit/602.3.12 (KHTML, like Gecko) Mobile/14C92 MicroMessenger/" + si.version;
+      // iOS
+      var v = si.system.replace(/^.*?([0-9.]+).*?$/, function (x, y) {
+          return y;
+      }).replace(/\./g, '_');
+      return "Mozilla/5.0 (iPhone; CPU iPhone OS " + v + " like Mac OS X) AppleWebKit/602.3.12 (KHTML, like Gecko) Mobile/14C92 MicroMessenger/" + si.version;
   } else {
-    // iPad
-    var v = si.system.replace(/^.*?([0-9.]+).*?$/, function (x, y) { return y; }).replace(/\./g, '_');
-    return "Mozilla/5.0 (iPad; CPU OS " + v + " like Mac OS X) AppleWebKit/534.46 (KHTML, like Gecko) Mobile/10A406 MicroMessenger/" + si.version;
+      // iPad
+      var v = si.system.replace(/^.*?([0-9.]+).*?$/, function (x, y) {
+          return y;
+      }).replace(/\./g, '_');
+      return "Mozilla/5.0 (iPad; CPU OS " + v + " like Mac OS X) AppleWebKit/534.46 (KHTML, like Gecko) Mobile/10A406 MicroMessenger/" + si.version;
   }
 }
 
@@ -914,7 +936,7 @@ function parseUtmParams(url) {
   var map = cp.params_map;
   var hit = {};
   for (var k in cp.params) {
-    hit[map[k]] = cp.params[k];
+      hit[map[k]] = cp.params[k];
   }
   return hit;
 }
@@ -935,44 +957,44 @@ function getInstance(app) {
   //}
   app = app || {};
   if (!app.defaultGoogleAnalyticsInstance) {
-    app.defaultGoogleAnalyticsInstance = new GoogleAnalytics(app);
+      app.defaultGoogleAnalyticsInstance = new GoogleAnalytics(app);
   }
   return app.defaultGoogleAnalyticsInstance;
 }
 
 var getSystemInfo = function () {
-  if (typeof wx == 'object' && typeof wx.getSystemInfoSync == 'function') {
-    return wx.getSystemInfoSync()
+  if (typeof uni == 'object' && typeof uni.getSystemInfoSync == 'function') {
+      return uni.getSystemInfoSync()
   }
   // default
   return {
-    brand: "unknow",
-    screenWidth: 0,
-    screenHeight: 0,
-    windowWidth: 0,
-    windowHeight: 0,
-    pixelRatio: 1,
-    language: "zh_CN",
-    system: "unknow",
-    model: "unknow",
-    version: "unknow",
-    platform: "unknow",
-    fontSizeSetting: 0,
-    SDKVersion: "unknow",
+      brand: "unknow",
+      screenWidth: 0,
+      screenHeight: 0,
+      windowWidth: 0,
+      windowHeight: 0,
+      pixelRatio: 1,
+      language: "zh_CN",
+      system: "unknow",
+      model: "unknow",
+      version: "unknow",
+      platform: "unknow",
+      fontSizeSetting: 0,
+      SDKVersion: "unknow",
   };
 };
 
 module.exports = {
   GoogleAnalytics: {
-    getInstance: getInstance
+      getInstance: getInstance
   },
   HitBuilders: {
-    HitBuilder: HitBuilder,
-    ScreenViewBuilder: ScreenViewBuilder,
-    EventBuilder: EventBuilder,
-    SocialBuilder: SocialBuilder,
-    ExceptionBuilder: ExceptionBuilder,
-    TimingBuilder: TimingBuilder
+      HitBuilder: HitBuilder,
+      ScreenViewBuilder: ScreenViewBuilder,
+      EventBuilder: EventBuilder,
+      SocialBuilder: SocialBuilder,
+      ExceptionBuilder: ExceptionBuilder,
+      TimingBuilder: TimingBuilder
   },
   // ecommerce 电子商务类
   Product: Product,
