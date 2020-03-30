@@ -27,13 +27,6 @@ function GoogleAnalytics(app) {
       uni.setStorageSync(cidKey, cid);
   }
   this.cid = cid;
-  this.userAgent = buildUserAgentFromSystemInfo(this.systemInfo);
-  var pixelRatio = this.systemInfo.pixelRatio;
-  this.sr = param_screen_fix(
-      Math.round(this.systemInfo.windowWidth * pixelRatio),
-      Math.round(this.systemInfo.windowHeight * pixelRatio),
-      this.systemInfo
-  );
   this.vp = [this.systemInfo.windowWidth, this.systemInfo.windowHeight].map(function (x) {
       return x; /*Math.floor(x)*/
   }).join('x');
@@ -141,9 +134,6 @@ Tracker.prototype.setScreenColors = function (screenColors) {
 Tracker.prototype.setScreenName = function (screenName) {
   return this.set("cd", screenName);
 }
-Tracker.prototype.setScreenResolution = function (width, height) {
-  return this.set("sr", [width, height].join('x'));
-}
 Tracker.prototype.setViewportSize = function (viewportSize) {
   return this.set("vp", viewportSize);
 }
@@ -169,9 +159,7 @@ Tracker.prototype.send_queue_push = function (ga, hit) {
       //cd: t.hit.cd,//screenName
       an: ga.appName,
       av: ga.appVersion,
-      sr: ga.sr,
       vp: ga.vp,
-      ua: ga.userAgent
   };
 
   // 合并Tracker上的参数
@@ -909,27 +897,6 @@ function getUUID() {
   });
 }
 
-function buildUserAgentFromSystemInfo(si) {
-  var isAndroid = si.system.toLowerCase().indexOf('android') > -1;
-  var isIPad = !isAndroid && si.model.toLowerCase().indexOf('iphone') == -1;
-  //console.log([isAndroid, isIPad]);
-  if (isAndroid) {
-      return "Mozilla/5.0 (Linux; U; " + si.system + "; " + si.model + " Build/000000) AppleWebKit/537.36 (KHTML, like Gecko)Version/4.0 Chrome/49.0.0.0 Mobile Safari/537.36 MicroMessenger/" + si.version;
-  } else if (!isIPad) {
-      // iOS
-      var v = si.system.replace(/^.*?([0-9.]+).*?$/, function (x, y) {
-          return y;
-      }).replace(/\./g, '_');
-      return "Mozilla/5.0 (iPhone; CPU iPhone OS " + v + " like Mac OS X) AppleWebKit/602.3.12 (KHTML, like Gecko) Mobile/14C92 MicroMessenger/" + si.version;
-  } else {
-      // iPad
-      var v = si.system.replace(/^.*?([0-9.]+).*?$/, function (x, y) {
-          return y;
-      }).replace(/\./g, '_');
-      return "Mozilla/5.0 (iPad; CPU OS " + v + " like Mac OS X) AppleWebKit/534.46 (KHTML, like Gecko) Mobile/10A406 MicroMessenger/" + si.version;
-  }
-}
-
 // Parses and translates utm campaign parameters to analytics campaign parameters and returns them as a map.
 // @param String  Example: http://examplepetstore.com/index.html?utm_source=email&utm_medium=email_marketing&utm_campaign=summer&utm_content=email_variation_1
 function parseUtmParams(url) {
@@ -940,13 +907,6 @@ function parseUtmParams(url) {
       hit[map[k]] = cp.params[k];
   }
   return hit;
-}
-
-function param_screen_fix(w, h, si) {
-  var isAndroid = si.system.toLowerCase().indexOf('android') > -1;
-  var isIPad = !isAndroid && si.model.toLowerCase().indexOf('iphone') == -1;
-  // TODO: 修正常见机型的分辨率
-  return [w, h].join('x');
 }
 
 function getInstance(app) {
