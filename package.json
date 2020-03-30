@@ -1,18 +1,19 @@
 {
-    "name": "wxapp-ga",
+    "name": "uniapp-ga",
     "version": "1.2.2",
-    "description": "Google Analytics SDK for Wechat's Mini Program",
+    "description": "Google Analytics SDK for uni-app",
     "keywords": [
         "Google Analytics",
         "WeChat",
         "mini-program",
         "wepy",
-        "mpvue"
+        "mpvue",
+        "uni-app"
     ],
     "license": "BSD",
     "repository": {
         "type": "git",
-        "url": "https://github.com/rchunping/wxapp-google-analytics.git"
+        "url": "https://github.com/Dandelion-drq/wxapp-google-analytics.git"
     },
     "main": "./ga.js",
     "types": "./ga.d.ts",
