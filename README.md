@@ -1,7 +1,7 @@
 
-# 谷歌统计 (Google Analytics) SDK 微信小程序专用
+# 谷歌统计 (Google Analytics) SDK uni-app 专用
 
-Google Analytics SDK for Wechat's Mini Program
+Google Analytics SDK for uni-app
 
 完整实现了 [Measurement Protocol](https://developers.google.com/analytics/devguides/collection/protocol/v1/reference)，并且API接口和 [Google Analytics for Android](https://developers.google.com/analytics/devguides/collection/android/v4/) 保持高度一致。
 
@@ -21,7 +21,7 @@ Google Analytics SDK for Wechat's Mini Program
 如果你使用[WePY](https://github.com/Tencent/wepy)或者[mpvue](https://github.com/Meituan-Dianping/mpvue)框架来开发小程序，也可以通过npm安装
 
 ```bash
-npm install git+https://github.com/rchunping/wxapp-google-analytics.git#v1.2.1
+npm install git+https://github.com/Dandelion-drq/wxapp-google-analytics.git#v1.2.2
 ```
 
 #### 3. 在微信小程序后台设置request合法域名
